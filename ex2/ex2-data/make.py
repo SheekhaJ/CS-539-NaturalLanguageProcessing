@@ -8,16 +8,18 @@ def unigramWFSA(unigramCount):
         totalCharCount = sum(unigramCount.values())
 
         for letter in unigramCount:
+            if letter == '<s>':
+                continue
             prob = unigramCount[letter]/totalCharCount
-            outFile.write('(1 (1 '+letter+' '+str(prob)+'))\n')
             if letter == '</s>':
-                outFile.write('(1 (F </s> '+str(prob)+'))\n')        
-
+                outFile.write('(1 (F </s> '+str(prob)+'))\n')
+                continue
+            outFile.write('(1 (1 '+letter+' '+str(prob)+'))\n')
 
 def getCount(lines, ngram):
     counter = defaultdict(int)
     for line in lines:
-        for word in line.strip().split():
+        for word in line.strip().split('_'):
             if '<s>' in word:
                 word = word.replace('<s>','')
                 counter['<s>'+word[:ngram-1]] += 1
@@ -30,22 +32,25 @@ def getCount(lines, ngram):
                         counter['</s>'] += 1
             for i in range(len(word)-ngram+1):
                 counter[word[i:i+ngram]] += 1
-    if '<' in counter: counter.pop('<')
-    if '\/' in counter : counter.pop('>')
-    if '>' in counter: counter.pop('/')
+    counter['_'] = sum([line.count('_') for line in lines])
+    
+    if '\<' in counter.keys(): counter.pop('<')
+    if '\/' in counter.keys() : counter.pop('>')
+    if '\>' in counter.keys(): counter.pop('/')
 
     return counter
 
 if __name__ == '__main__':
-    lines = ['<s>'+line.strip('\n')+'</s>' for line in open('/nfs/stak/users/jariwals/Natural Language Processing/ex2/ex2-data/test.txt','r').readlines()]
+    lines = ['<s>'+line.strip('\n')+'</s>' for line in open('/nfs/stak/users/jariwals/Natural Language Processing/ex2/ex2-data/train.txt','r').readlines()]
     lines = ['_'.join(line.split()) for line in lines]
     
     unigramCount = getCount(lines, 1)
     bigramCount = getCount(lines, 2)
     trigramCount = getCount(lines, 3)
 
-    print(unigramCount)
-    print(bigramCount)
-    print(trigramCount)
-
+    # print(unigramCount)
+    # print(bigramCount)
+    # print(trigramCount)
+    
     unigramWFSA(unigramCount)
+    # bigramWFSA(bigramCount)
