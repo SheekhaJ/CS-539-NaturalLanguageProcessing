@@ -1,6 +1,9 @@
+import sys
 from collections import defaultdict
 
-lines = [l.strip() for l in open('epron-jpron.data','r').readlines()]
+fin = sys.stdin
+
+lines = [l.strip() for l in fin.readlines()]
 elines, jlines, alignlines = [], [], []
 
 for i,l in enumerate(lines):
@@ -10,10 +13,6 @@ for i,l in enumerate(lines):
         jlines.append(l)
     elif i%3==2:
         alignlines.append(l)
-
-# print(elines)
-# print(jlines)
-# print(alignlines)
 
 mapping, mappingCount = defaultdict(list), defaultdict(lambda : defaultdict(lambda:float(0)))
 for i,al in enumerate(alignlines):
@@ -27,8 +26,6 @@ for i,al in enumerate(alignlines):
             continue
         temp[a-1] = temp[a-1]+jchars[j] if temp[a-1]!=None else jchars[j]
     tempDict = {echars[j]:temp[j] for j in range(len(temp))}
-    
-    # print(''.join(echars),tempDict)
 
     for k,v in tempDict.items():
         mapping[k].append(v)
@@ -36,9 +33,6 @@ for i,al in enumerate(alignlines):
 for echar,jchars in mapping.items():
     for jchar in jchars:
         mappingCount[echar][jchar] += 1 
-
-# print(mapping)
-# print(mappingCount)
 
 probs = {echar : {jchar:mappingCount[echar][jchar]/sum(mappingCount[echar].values()) for jchar in jcharcounts} for echar,jcharcounts in mappingCount.items()}
 
@@ -52,7 +46,7 @@ probs = {echar : {jchar:probs[echar][jchar]/sum(probs[echar].values()) for jchar
 outStr = ''
 for echar, jchars in sorted(probs.items()):
     for jchar,prob in sorted(jchars.items()):
-        if len(jchar.split()) > 0:
-            for c in jchar.split():
-                outStr += echar+' : '+ c +' # '+str(prob)+'\n'
+        if prob > 0:
+            c = ' '.join(list(jchar))
+            outStr += echar+' : '+ c +' # '+str(prob)+'\n'
 print(outStr)
