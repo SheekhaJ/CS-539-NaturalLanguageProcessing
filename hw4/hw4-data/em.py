@@ -25,16 +25,16 @@ for x in range(len(ewords)):
             e,j=0,0
             while e<len(ewords[x]):
                 if e==a:
-                    tempDict[ewords[x][e]]=' '.join(jwords[x][j:j+k])
+                    tempDict[(ewords[x][e],e)]=' '.join(jwords[x][j:j+k])
                     j += k
                 else:
                     if e==len(ewords[x])-1:
-                        tempDict[ewords[x][e]]=' '.join(jwords[x][j:])
+                        tempDict[(ewords[x][e],e)]=' '.join(jwords[x][j:])
                     else:
-                        tempDict[ewords[x][e]]=jwords[x][j]
+                        tempDict[(ewords[x][e],e)]=jwords[x][j]
                     j += 1
                 e += 1
-            models[tuple(ewords[x])].append(tempDict) if '' not in tempDict.values() else None
+            models[tuple(ewords[x])].append(tempDict) if '' not in tempDict.values() and len(tempDict.keys())==len(ewords[x]) else None
 
 # print(models)
 
