@@ -14,15 +14,26 @@ start, end = ('<s>','</s>')
 trainlines = [[start]+[l for l in line]+[end] for line in trainlines]
 
 bigram = defaultdict(lambda : defaultdict(int))
-bigramprobs = defaultdict(lambda : defaultdict(int))
+bigramprobs = defaultdict(lambda : defaultdict(float))
 for line in trainlines:
     for i in range(len(line)-1):
         bigram[line[i]][line[i+1]] += 1
+
+reversebigram = defaultdict(lambda : defaultdict(int))
+reversebigramprobs = defaultdict(lambda : defaultdict(float))
+for l,line in enumerate(trainlines):
+    for i in range(len(line)-1,0,-1):
+        reversebigram[line[i]][line[i-1]] += 1
 
 for c1 in bigram.keys():
     N = sum(bigram[c1].values())
     for c2,count in bigram[c1].items():
         bigramprobs[c1][c2] = bigram[c1][c2]/float(N)
+
+for c1 in reversebigram.keys():
+    N = sum(reversebigram[c1].values())
+    for c2,count in reversebigram[c1].items():
+        reversebigramprobs[c1][c2] = reversebigram[c1][c2]/float(N)
 
 trainChars = [c for line in trainlines for c in line]
 cipherChars = [start]+[c for string in cipher for c in string]+[end]
@@ -56,25 +67,46 @@ def initProbs(tDict, cDict):
     
 
 pDict = initProbs(trainCharDict, cipherCharDict)
-
-for k in range(iters):
+for k,v in pDict.items():
+    print('{}:{}'.format(k,v))
+# for k in range(iters):
     # e step
-    countDict= defaultdict(lambda : defaultdict(float))
-    corpusprob = 0
-    
-    # Forward Viterbi    
-    fwd = defaultdict(lambda : defaultdict(float))
-    # fwdTrace = defaultdict(lambda : defaultdict(str))
-    fwd[0][start] = 1
-    for x in range(len(cipher)):
-        for i,c in enumerate(cipher[0],1):
-            for curr in pDict[c]:
-                for prev in fwd[i-1]:
-                    if curr in bigramprobs[prev]:
-                        score = fwd[i-1][prev] * pDict[c][curr] * bigramprobs[prev][curr]
-                        fwd[i][curr] += score
+countDict= defaultdict(lambda : defaultdict(float))
+corpusprob = 0
 
-            
-    for k,v in fwd.items():
-        print('len: {} key:{} val:{}'.format(len(v),k,v))
+# Forward Viterbi    
+fwd = defaultdict(lambda : defaultdict(float))
+# fwdTrace = defaultdict(lambda : defaultdict(str))
+fwd[0][start] = 1
+
+# Backward Viterbi
+bck = defaultdict(lambda : defaultdict(float))
+# bckTrace = defaultdict(lambda : defaultdict(str))
+# cl = len(cipher[x])
+cl = len(cipher[0])
+bck[cl][end] = 1
+
+# for x in range(len(cipher)):
+for x in range(1):
+    for i,c in enumerate(cipher[0],1):
+        for curr in pDict[c]:
+            for prev in fwd[i-1]:
+                if curr in bigramprobs[prev]:
+                    score = fwd[i-1][prev] * pDict[c][curr] * bigramprobs[prev][curr]
+                    fwd[i][curr] += score
+    # FTprob = fwd[-1][]
         
+# for k,v in fwd.items():
+#     print('len: {} key:{} val:{}'.format(len(v),k,v)) 
+    
+    for i in reversed(range(1,cl+1)):
+        i = i - 1
+        c = cipher[0][i]
+        for curr in pDict[c]:
+            for next in list(bck[i+1].keys()):
+                if curr in reversebigramprobs[next]:
+                    score = bck[i+1][next] * pDict[c][curr] * reversebigramprobs[next][curr]
+                    bck[i][curr] += score
+
+for k,v in bck.items():
+    print('len: {} key:{} val:{}'.format(len(v),k,v))
