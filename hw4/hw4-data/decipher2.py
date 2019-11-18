@@ -1,8 +1,10 @@
 from collections import defaultdict
 import sys
+import math
 
 fin = sys.stdin
 fout = sys.stdout
+ferr = sys.stderr
 iters = int(sys.argv[2])
 
 cipher = [line.strip() for line in fin.readlines()]
@@ -11,7 +13,7 @@ trainlines = ['_'.join(line.split()) for line in trainlines]
 
 start, end = ('<s>','</s>')
 
-trainlines = [[start]+[l for l in line]+[end] for line in trainlines]
+# trainlines = [[start]+[l for l in line]+[end] for line in trainlines]
 
 bigram = defaultdict(lambda : defaultdict(int))
 bigramprobs = defaultdict(lambda : defaultdict(float))
@@ -36,7 +38,8 @@ for c1 in reversebigram.keys():
         reversebigramprobs[c1][c2] = reversebigram[c1][c2]/float(N)
 
 trainChars = [c for line in trainlines for c in line]
-cipherChars = [start]+[c for string in cipher for c in string]+[end]
+cipherChars = [c for string in cipher for c in string]
+# cipherChars = [start]+[c for string in cipher for c in string]+[end]
 
 trainCharDict, cipherCharDict = defaultdict(int), defaultdict(int)
 for c in trainChars:
@@ -46,6 +49,15 @@ for c in cipherChars:
     cipherCharDict[c] += 1
 
 chars = [(i,c) for i,c in enumerate(trainCharDict.keys())]
+
+def printdict(d):
+    vals = [v for dv in d.values() for v in dv.values() if v >= 0.01]
+    for e in d:
+        ferr.write('\n' + e + '|->')
+        for j in d[e]:
+            if d[e][j] >= 0.01:
+                ferr.write('  ' + j + ': ' + '{:0.3f}'.format(d[e][j])+'')
+    # ferr.write('\nnonzeros: '+str(len(vals))+'\n')
 
 def normalize(d):
     for k in d:
@@ -59,54 +71,108 @@ def normalize(d):
 
 
 def initProbs(tDict, cDict):
-    countDict = defaultdict(lambda : defaultdict(float))
-    for tc in tDict:
-        for cc in cDict:
-            countDict[tc][cc] = 1
+    countDict = {}
+    for cc in cDict:
+        countDict[cc] = {}
+        for tc in tDict:
+            countDict[cc][tc] = 1
     return normalize(countDict)
     
 
 pDict = initProbs(trainCharDict, cipherCharDict)
+# pDict = initProbs(cipherCharDict, trainCharDict)
 for k,v in pDict.items():
-    print('{}:{}'.format(k,v))
-# for k in range(iters):
+    print('{}:{} -- len:{}'.format(k,v,len(v)))
+print(len(pDict.keys()))
+
+iters = 1
+for k in range(iters):
     # e step
-countDict= defaultdict(lambda : defaultdict(float))
-corpusprob = 0
+    countDict= defaultdict(lambda : defaultdict(float))
+    corpusprob = 0
 
-# Forward Viterbi    
-fwd = defaultdict(lambda : defaultdict(float))
-# fwdTrace = defaultdict(lambda : defaultdict(str))
-fwd[0][start] = 1
+    # Forward Viterbi    
+    fwd = defaultdict(lambda : defaultdict(float))
+    fwdTrace = defaultdict(lambda : defaultdict(str))
+    fwd[0][start] = 1
 
-# Backward Viterbi
-bck = defaultdict(lambda : defaultdict(float))
-# bckTrace = defaultdict(lambda : defaultdict(str))
-# cl = len(cipher[x])
-cl = len(cipher[0])
-bck[cl][end] = 1
-
-# for x in range(len(cipher)):
-for x in range(1):
-    for i,c in enumerate(cipher[0],1):
-        for curr in pDict[c]:
-            for prev in fwd[i-1]:
-                if curr in bigramprobs[prev]:
-                    score = fwd[i-1][prev] * pDict[c][curr] * bigramprobs[prev][curr]
-                    fwd[i][curr] += score
-    # FTprob = fwd[-1][]
-        
-# for k,v in fwd.items():
-#     print('len: {} key:{} val:{}'.format(len(v),k,v)) 
+    # Backward Viterbi
+    bck = defaultdict(lambda : defaultdict(float))
+    bckTrace = defaultdict(lambda : defaultdict(str))
     
-    for i in reversed(range(1,cl+1)):
-        i = i - 1
-        c = cipher[0][i]
-        for curr in pDict[c]:
-            for next in list(bck[i+1].keys()):
-                if curr in reversebigramprobs[next]:
-                    score = bck[i+1][next] * pDict[c][curr] * reversebigramprobs[next][curr]
-                    bck[i][curr] += score
+    for x in range(len(cipher)):
+        for i,cc in enumerate(cipher[x]):
+            for curr in pDict[cc]:
+                for prev in fwd[i-1]:
+                    if curr in bigramprobs[prev]:
+                        score = fwd[i-1][prev] * bigramprobs[prev][curr] * pDict[cc][curr]
+                        if score > fwd[i][curr]:
+                            fwd[i][curr] += score
+                            fwdTrace[i][curr] = prev
+        
+        FTprob = fwd[len(pDict)][end]
+            
+        # for k,v in fwd.items():
+        #     print('len: {} key:{} '.format(len(v),k)) 
+            # print('len: {} key:{} val:{}'.format(len(v),k,v)) 
+        print('FTprob: {}'.format(FTprob))
+        
+        cl = len(cipher[x])
+        bck[cl][end] = 1
+    
+        for i in reversed(range(1,cl+1)):
+            i = i - 1
+            cc = cipher[x][i]
+            for curr in pDict[cc]:
+                for next in bck[cc]:
+                    if curr in bigramprobs[next]:
+                        score = bck[i+1][next] * bigramprobs[next][curr] * pDict[cc][curr]
+                        if score > bck[i][curr]:
+                            bck[i][curr] += score
+                            bckTrace[i][curr] = next
 
-for k,v in bck.items():
-    print('len: {} key:{} val:{}'.format(len(v),k,v))
+        # for k,v in bck.items():
+        #     print('len: {} key:{} '.format(len(v),k)) 
+            # print('len: {} key:{} val:{}'.format(len(v),k,v)) 
+
+        # Get fractional counts
+        for i,cc in enumerate(cipher[x],1):
+            for tc in list(fwd[i].keys()):
+                countDict[cc][tc] += pDict[cc][tc] * fwd[i][cc] * bck[i+1][tc] / FTprob
+
+        corpusprob += -math.log10(FTprob)
+
+        # print('countDict: {}'.format(countDict))
+        print('corpus prob: {}'.format(corpusprob))
+
+    # m-step
+    pDict = normalize(countDict)
+
+    if corpusprob > 120:
+        cstr =  '10^ '+str(-round(corpusprob,3))
+    else:
+        cstr = str(10**-corpusprob)
+    
+    # for i,cc in enumerate(cipher[x]):
+    #     for tc in list(fwd[i].keys()):
+    #         print(pDict[cc][tt])
+
+    # for k,v in pDict.items():
+    #     print(k,v)
+
+    cstr = str(corpusprob)
+    # entropy = str(-sum([(pDict[c][d] * math.log10(pDict[c][d])) for i,c in enumerate(cipher[x]) for d in list(fwd[i].keys())]))
+    nonzeros = str(len([v for dv in pDict.values() for v in dv.values() if v >= 0.01]))
+
+    # ferr.write('\n\nepoch '+str(i)+'  logp(corpus)=  '+cstr+' entropy= '+entropy+' non-zeros= '+nonzeros)
+    ferr.write('\n\nepoch '+str(k+1)+'  logp(corpus)=  '+cstr+' non-zeros= '+nonzeros+'\n')
+    
+    # printdict(pDict)
+    
+    if 10**-corpusprob >= 1:
+        break
+
+# for e in sorted(pDict.keys()):
+#     for j in sorted(pDict[e]):
+#         if pDict[e][j] >=0.01:
+#             fout.write(e + ' : ' + j + ' # ' + '{0:.8f}'.format(pDict[e][j]) + '\n')
