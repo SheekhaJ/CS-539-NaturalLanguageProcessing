@@ -1,6 +1,7 @@
 from collections import defaultdict
 import sys
 import math
+import string
 
 fin = sys.stdin
 fout = sys.stdout
@@ -15,29 +16,9 @@ start, end = ('<s>','</s>')
 
 # trainlines = [[start]+[l for l in line]+[end] for line in trainlines]
 
-bigram = defaultdict(lambda : defaultdict(int))
-bigramprobs = defaultdict(lambda : defaultdict(float))
-for line in trainlines:
-    for i in range(len(line)-1):
-        bigram[line[i]][line[i+1]] += 1
-
-reversebigram = defaultdict(lambda : defaultdict(int))
-reversebigramprobs = defaultdict(lambda : defaultdict(float))
-for l,line in enumerate(trainlines):
-    for i in range(len(line)-1,0,-1):
-        reversebigram[line[i]][line[i-1]] += 1
-
-for c1 in bigram.keys():
-    N = sum(bigram[c1].values())
-    for c2,count in bigram[c1].items():
-        bigramprobs[c1][c2] = bigram[c1][c2]/float(N)
-
-for c1 in reversebigram.keys():
-    N = sum(reversebigram[c1].values())
-    for c2,count in reversebigram[c1].items():
-        reversebigramprobs[c1][c2] = reversebigram[c1][c2]/float(N)
-
-trainChars = [c for line in trainlines for c in line]
+#trainChars = [trainChars.add(c) for line in trainlines for c in line]
+trainChars = list(string.ascii_lowercase) + [' ']
+print('len of trainchars: {}'.format(len(trainChars)))
 cipherChars = [c for string in cipher for c in string]
 # cipherChars = [start]+[c for string in cipher for c in string]+[end]
 
@@ -47,6 +28,17 @@ for c in trainChars:
 
 for c in cipherChars:
     cipherCharDict[c] += 1
+
+bigram = defaultdict(lambda : defaultdict(int))
+bigramprobs = defaultdict(lambda : defaultdict(float))
+for line in trainlines:
+    for i in range(len(line)-1):
+        bigram[line[i]][line[i+1]] += 1
+
+for c1 in bigram.keys():
+    N = sum(bigram[c1].values())
+    for c2,count in bigram[c1].items():
+        bigramprobs[c1][c2] = bigram[c1][c2]/float(N)
 
 chars = [(i,c) for i,c in enumerate(trainCharDict.keys())]
 
@@ -94,7 +86,7 @@ for k in range(iters):
     # Forward Viterbi    
     fwd = defaultdict(lambda : defaultdict(float))
     fwdTrace = defaultdict(lambda : defaultdict(str))
-    fwd[0][start] = 1
+    fwd[0][' '] = 1
 
     # Backward Viterbi
     bck = defaultdict(lambda : defaultdict(float))
@@ -118,7 +110,7 @@ for k in range(iters):
         print('FTprob: {}'.format(FTprob))
         
         cl = len(cipher[x])
-        bck[cl][end] = 1
+        bck[cl][' '] = 1
     
         for i in reversed(range(1,cl+1)):
             i = i - 1
