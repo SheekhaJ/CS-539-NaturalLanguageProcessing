@@ -4,6 +4,7 @@ from pprint import pprint
 import sys
 
 fin = sys.stdin
+fout = sys.stdout
 ferr = sys.stderr
 
 trees = [line.strip() for line in fin.readlines()]
@@ -13,13 +14,11 @@ for i,tree in enumerate(trees):
 
 gcounts = defaultdict(lambda : defaultdict(lambda : list))
 
-def getpcfgs(tree, gcounts):
-##        print('tree in method: {}'.format(type(tree)))
+def getcfgcounts(tree, gcounts):
         if tree.word == None:
                 for t in tree.subs:
-                        getpcfgs(t,gcounts)
+                        getcfgcounts(t,gcounts)
                 if len(tree.subs) == 2:
-##                        print('tree: {} label: {}'.format(tree, tree.label))
                         children = ''
                         for t in tree.subs:
                                 children += ' '+t.label
@@ -29,7 +28,6 @@ def getpcfgs(tree, gcounts):
                         else:
                                 gcounts[tree.label][children] += 1
                 elif len(tree.subs)==1:
-##                        print('unary case: {} child: {}'.format(tree, tree.subs[0].label))
                         if tree.subs[0].label not in gcounts[tree.label]:
                                 gcounts[tree.label][tree.subs[0].label] = 1
                         else:
@@ -37,17 +35,23 @@ def getpcfgs(tree, gcounts):
                 else:
                         print('something odd here! tree: {} gcounts:{}'.format(tree, gcounts))
         else:
-##                print('3) tree: {} tree.label: {} tree.word: {}'.format(tree, tree.label, tree.word))
                 if tree.label not in gcounts[tree.label]:
                         gcounts[tree.label][tree.word] = 1
                 else:
                         gcounts[tree.label][tree.word] += 1
-##        print('gcounts: {}'.format(gcounts))
 
 for tree in trees:
-##        print('tree type: {}'.format(type(tree)))
-        getpcfgs(tree, gcounts)
+        getcfgcounts(tree, gcounts)
 
-#pgdict = {label : {} if }
+##print('gcounts: '.format(gcounts))
+##for k,v in gcounts.items():
+##        print('{} : {}'.format(k,v))
 
-print('gcounts: {}'.format(gcounts))
+pcfgs = {x : {c : float(gcounts[x][c])/sum(gcounts[x].values()) for c in gcounts[x]} for x in gcounts}
+##for k,v in pcfgs.items():
+##        print('{} : {}'.format(k,v))
+
+fout.write('TOP\n')
+for key,val in pcfgs.items():
+        for k,v in pcfgs[key].items():
+                fout.write('{} -> {} # {:0.4f}\n'.format(key,k,pcfgs[key][k]))
